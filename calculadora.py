@@ -23,18 +23,18 @@ def calcular_din():
             background-attachment: fixed;
         }
         .sidebar .sidebar-content {
-            background-color: rgba(255, 255, 255, 0.9);  /* Fondo más claro para la barra lateral */
+            background-color: rgba(255, 255, 255, 0.9);
         }
         .stButton>button {
-            background-color: #0044cc;  /* Color de fondo para botones */
-            color: white;  /* Texto blanco */
+            background-color: #0044cc;
+            color: white;
             font-size: 16px;
             border-radius: 8px;
             border: none;
             padding: 10px 20px;
         }
         .stButton>button:hover {
-            background-color: #0066ff;  /* Efecto al pasar el mouse */
+            background-color: #0066ff;
         }
         .header {
             text-align: center;
@@ -58,7 +58,7 @@ def calcular_din():
     # 4. Entrada inicial con imagen
     st.image(
         "https://www.comercioyaduanas.com.mx/storage/2015/04/porque-empezar-un-negocio-importando-o-exportando.jpg",
-        caption="Bienvenido a la calculadora para la Provision de Fondo",
+        caption="Bienvenido a la calculadora para la Provisión de Fondo",
         use_container_width=True
     )
 
@@ -95,35 +95,26 @@ def calcular_din():
     }
 
     tasa_impuesto = st.selectbox(
-        "Seleccione la Tasa de Impuesto Adicional:",
-        list(tasas_mercancia.keys())
-    )
-
+        "Seleccione la Tasa de Impuesto Adicional:", list(tasas_mercancia.keys()))
     tasa_impuesto_valor = tasas_mercancia[tasa_impuesto]
 
     # Mostrar el porcentaje de impuesto adicional
     st.write(f"Tasa de Impuesto Adicional Seleccionada: {tasa_impuesto}.")
 
-    # 8. Entradas para cálculos: valor de la mercancía y costo de flete (en blanco con símbolo de $)
+    # 8. Entradas para cálculos: valor de la mercancía y costo de flete
     valor_mercancia = st.text_input("Valor de la Mercancía (USD):", value="$")
     costo_flete = st.text_input("Costo del Flete (USD):", value="$")
 
     # Asegurarse de que se ingresen valores válidos
-    if valor_mercancia == "$":
-        valor_mercancia = 0
-    else:
-        valor_mercancia = float(valor_mercancia.strip("$").replace(",", ""))
-
-    if costo_flete == "$":
-        costo_flete = 0
-    else:
-        costo_flete = float(costo_flete.strip("$").replace(",", ""))
+    valor_mercancia = float(valor_mercancia.strip(
+        "$").replace(",", "")) if valor_mercancia != "$" else 0
+    costo_flete = float(costo_flete.strip("$").replace(
+        ",", "")) if costo_flete != "$" else 0
 
     # 9. Cálculo de seguro, CIF y demás valores
     seguro = 0.1 * (valor_mercancia + costo_flete)
     cif = valor_mercancia + costo_flete + seguro
 
-    # Mostrar valores formateados
     st.write(f"Valor CIF: {formato_moneda(cif)}")
     st.write(f"Costo Seguro (10% del total de Mercancía y Flete): {
              formato_moneda(seguro)}")
@@ -137,7 +128,7 @@ def calcular_din():
     iva = (cif + ad_valorem) * 0.19
     st.write(f"IVA: {formato_moneda(iva)}")
 
-    # 12. Cálculo de Impuesto Adicional con la tasa seleccionada
+    # 12. Cálculo de Impuesto Adicional
     impuesto_adicional = (cif + ad_valorem) * tasa_impuesto_valor
     st.write(f"Impuesto Adicional: {formato_moneda(impuesto_adicional)}")
 
@@ -147,39 +138,46 @@ def calcular_din():
     st.write(f"Total Impuestos: {formato_moneda(total_impuestos)}")
     st.write(f"Total General: {formato_moneda(total_general)}")
 
-    # 14. Agregar cálculo al historial
+    # 14. Campo para observaciones
+    observaciones = st.text_area(
+        "¿Hay documentos pendientes? Agregue observaciones:")
+
+    # 15. Agregar cálculo al historial
     if st.button("Agregar Provisión"):
         st.session_state.calculos.append({
             "Unidad de Negocio": unidad_negocio,
             "Despacho": numero_despacho,
-            "Monto DIN": total_general
+            "Monto DIN": total_general,
+            "Observaciones": observaciones
         })
 
-    # 15. Mostrar historial de cálculos
+    # 16. Mostrar historial de cálculos
     if st.session_state.calculos:
         st.write("### PROVISIÓN DE FONDOS")
         df = pd.DataFrame(st.session_state.calculos)
         st.table(df)
 
-        # 16. Crear tabla resumen agrupando por unidad de negocio
+        # 17. Crear tabla resumen agrupando por unidad de negocio (sin observaciones)
         df_resumen = df.groupby("Unidad de Negocio", as_index=False)[
             "Monto DIN"].sum()
-        st.write("### Resumen por Unidad de Negocio")
+        st.write("### Provision por Unidad de Negocio")
         st.table(df_resumen)
 
-        # 17. Exportar a Excel
+        # 18. Exportar ambas tablas a Excel
         if st.button("Exportar a Excel"):
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                # Convertir montos al formato sin separadores para evitar errores en Excel
-                df_resumen["Monto DIN"] = df_resumen["Monto DIN"].apply(
-                    lambda x: round(x, 2))
-                df_resumen.to_excel(writer, index=False, sheet_name="Resumen")
+                # Escribir la tabla completa
+                df.to_excel(writer, index=False, sheet_name="Provisiones")
+                start_row = len(df) + 4  # Dejar espacio entre tablas
+                # Escribir el resumen a continuación
+                df_resumen.to_excel(writer, startrow=start_row,
+                                    index=False, sheet_name="Provisiones")
             buffer.seek(0)
             st.download_button("Descargar Excel", buffer,
-                               "provision_fondos_resumen.xlsx")
+                               "provision_fondos.xlsx")
 
 
-# 18. Ejecutar la aplicación
+# 19. Ejecutar la aplicación
 if __name__ == "__main__":
     calcular_din()
